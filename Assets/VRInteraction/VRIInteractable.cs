@@ -4,77 +4,75 @@ using System.Collections;
 namespace VRInteraction
 {
     [RequireComponent(typeof(Rigidbody))]
-    public class VRIInteractable : MonoBehaviour
+    public abstract class VRIInteractable : MonoBehaviour
     {
         public Rigidbody Rigidbody;
-
-        public Transform InteractionPoint;
-
         public bool CanAttached = true;
+        public VRIHand AttachedHand = null;
 
-        public VRIHand AttachedBy = null;
+        protected Collider[] Colliders;
+        protected virtual float DropDistance { get { return 3f; } }
 
-
-        private float AttachedRotationMagic = 1000f;
-        private float AttachedPositionMagic = 2000f;
-        private float DropDistance = 3f;
-
-        public bool IsAttached
+        public virtual bool IsAttached
         {
             get
             {
-                return AttachedBy != null;
+                return AttachedHand != null;
             }
         }
 
-        private void Awake()
+        protected virtual void Awake()
         {   
             Rigidbody = this.GetComponent<Rigidbody>();
-
-            if (InteractionPoint == null)
-                InteractionPoint = this.transform;
+            Colliders = this.GetComponentsInChildren<Collider>();
         }
 
-        private void Start()
+        protected virtual void Start()
         {
-            VRIInteractables.Register(this, this.GetComponentsInChildren<Collider>());
+            VRIInteractables.Register(this, Colliders);
         }
 
-        private void FixedUpdate()
+        protected virtual void FixedUpdate()
         {
             if (IsAttached == true)
             {
-                if (Vector3.Distance(this.transform.position, AttachedBy.transform.position) > DropDistance)
+                float shortestDistance = float.MaxValue;
+                for (int index = 0; index < Colliders.Length; index++)
                 {
-                    AttachedBy.EndInteraction();
+                    Vector3 closest = Colliders[index].bounds.ClosestPoint(AttachedHand.transform.position);
+                    float distance = Vector3.Distance(AttachedHand.transform.position, closest);
+
+                    if (distance < shortestDistance)
+                    {
+                        shortestDistance = distance;
+                    }
                 }
-                else
+
+                if (shortestDistance > DropDistance)
                 {
-                    Vector3 toHandPos = (AttachedBy.transform.position - this.transform.position);
-                    Rigidbody.velocity = toHandPos * AttachedPositionMagic * Time.fixedDeltaTime;
-
-                    Quaternion toHandRot = Quaternion.RotateTowards(this.transform.rotation, AttachedBy.transform.rotation, AttachedRotationMagic * Time.fixedDeltaTime);
-                    this.Rigidbody.MoveRotation(toHandRot); //todo: use angular velocity
-
-                    if(this.transform.rotation != AttachedBy.transform.rotation)
-                    {
-                        Rigidbody.angularVelocity = Vector3.Cross(this.Rigidbody.velocity, AttachedBy.Rigidbody.velocity);
-                    }
-                    else
-                    {
-                        this.Rigidbody.angularVelocity = new Vector3(0, 0, 0);
-                    }
-
+                    DroppedBecauseOfDistance();
                 }
             }
         }
 
-        public void BeginInteraction(VRIHand hand)
+        //Remove items that go too high or too low.
+        protected virtual void Update()
         {
-            AttachedBy = hand;
+            if (this.transform.position.y > 10000 || this.transform.position.y < -10000)
+            {
+                if (AttachedHand != null)
+                    AttachedHand.EndInteraction(this);
+
+                Destroy(this.gameObject);
+            }
         }
 
-        public void InteractingUpdate(VRIHand hand)
+        public virtual void BeginInteraction(VRIHand hand)
+        {
+            AttachedHand = hand;
+        }
+
+        public virtual void InteractingUpdate(VRIHand hand)
         {
             if (hand.UseButtonUp == true)
             {
@@ -82,9 +80,14 @@ namespace VRInteraction
             }
         }
 
-        public void EndInteraction()
+        public virtual void EndInteraction()
         {
-            AttachedBy = null;
+            AttachedHand = null;
+        }
+
+        protected virtual void DroppedBecauseOfDistance()
+        {
+            AttachedHand.EndInteraction(this);
         }
 
         public virtual void UseButtonUp()

@@ -7,6 +7,7 @@ namespace VRInteraction
     public class VRIPlayer : MonoBehaviour
     {
         public static VRIPlayer Instance;
+        public bool PhysicalHands = false;
 
         public VRIHand[] Hands;
 
@@ -24,13 +25,21 @@ namespace VRInteraction
         {
             for (int index = 0; index < Hands.Length; index++)
             {
-                Instance.ColliderToHandMapping.Add(Hands[index].GetComponent<Collider>(), Hands[index]);
+                ColliderToHandMapping.Add(Hands[index].GetComponent<Collider>(), Hands[index]);
             }
         }
 
         public VRIHand GetHand(Collider collider)
         {
             return ColliderToHandMapping[collider];
+        }
+
+        public static void DeregisterInteractable(VRIInteractable interactable)
+        {
+            for (int index = 0; index < Instance.Hands.Length; index++)
+            {
+                Instance.Hands[index].DeregisterInteractable(interactable);
+            }
         }
     }
 }

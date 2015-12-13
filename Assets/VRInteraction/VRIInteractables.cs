@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace VRInteraction
 {
@@ -27,6 +28,14 @@ namespace VRInteraction
             {
                 ColliderMapping.Add(colliders[index], interactable);
             }
+        }
+
+        public static void Deregister(VRIInteractable interactable)
+        {
+            VRIPlayer.DeregisterInteractable(interactable);
+
+            ColliderMapping = ColliderMapping.Where(mapping => mapping.Value != interactable).ToDictionary(mapping => mapping.Key, mapping => mapping.Value);
+            VRIInteractableMapping.Remove(interactable);
         }
 
         public static VRIInteractable GetInteractable(Collider collider)
